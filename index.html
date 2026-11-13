@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Report, verify and track power outages by zone, with an update timeline, affected-service checklist and recovery estimates.">
+  <title>Power Outage Update Board</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#board">Skip to outage reports</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <div>
+        <h1>Power Outage Update Board</h1>
+        <p class="tagline">Report an outage in your zone, confirm what neighbours see, and follow recovery updates.</p>
+      </div>
+      <div class="header-tools">
+        <p class="clock"><span class="visually-hidden">Current time: </span><time id="clock" datetime="">--</time></p>
+        <label class="switch">
+          <input type="checkbox" id="operator-toggle">
+          <span>Utility desk view</span>
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="summary" aria-labelledby="summary-title">
+      <h2 id="summary-title" class="visually-hidden">Situation summary</h2>
+      <dl class="stats">
+        <div class="stat"><dt>Active outages</dt><dd id="stat-active">0</dd></div>
+        <div class="stat"><dt>Awaiting verification</dt><dd id="stat-unverified">0</dd></div>
+        <div class="stat"><dt>Avg. restoration time</dt><dd id="stat-avg">&ndash;</dd></div>
+        <div class="stat"><dt>Most affected zone</dt><dd id="stat-zone">&ndash;</dd></div>
+      </dl>
+    </section>
+
+    <div class="layout">
+      <section id="board" class="board" aria-labelledby="board-title" tabindex="-1">
+        <h2 id="board-title">Outage reports</h2>
+
+        <form id="filter-form" class="filters" role="search" aria-label="Filter outage reports">
+          <div class="field">
+            <label for="f-search">Search</label>
+            <input type="search" id="f-search" name="search" placeholder="Name or description">
+          </div>
+          <div class="field">
+            <label for="f-zone">Zone</label>
+            <select id="f-zone" name="zone"><option value="">All zones</option></select>
+          </div>
+          <div class="field">
+            <label for="f-status">Status</label>
+            <select id="f-status" name="status">
+              <option value="">All statuses</option>
+              <option value="active">Active (not restored)</option>
+              <option value="reported">Reported</option>
+              <option value="verified">Verified</option>
+              <option value="crew">Crew on site</option>
+              <option value="restored">Restored</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-service">Affected service</label>
+            <select id="f-service" name="service"><option value="">Any service</option></select>
+          </div>
+          <div class="field">
+            <label for="f-sort">Sort by</label>
+            <select id="f-sort" name="sort">
+              <option value="newest">Newest first</option>
+              <option value="longest">Longest outage</option>
+              <option value="confirmed">Most confirmations</option>
+            </select>
+          </div>
+          <div class="field field-action">
+            <button type="reset" class="btn btn-ghost" id="f-reset">Clear filters</button>
+          </div>
+        </form>
+
+        <p id="result-count" class="result-count" role="status" aria-live="polite"></p>
+
+        <ul id="outage-list" class="outage-list" aria-label="Outage reports"></ul>
+
+        <div id="empty-state" class="empty" hidden>
+          <h3>No reports match these filters</h3>
+          <p>Try clearing a filter, or use the form to report a new outage.</p>
+        </div>
+      </section>
+
+      <section id="report" class="report" aria-labelledby="report-title">
+        <h2 id="report-title">Report an outage</h2>
+        <p class="hint">Fields marked <span aria-hidden="true">*</span><span class="visually-hidden">with an asterisk</span> are required. Times use your device time zone (<span id="tz-name"></span>).</p>
+
+        <form id="report-form" autocomplete="off">
+          <div class="field">
+            <label for="r-zone">Zone <span aria-hidden="true">*</span></label>
+            <select id="r-zone" name="zone" required>
+              <option value="">Choose your zone</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="r-name">Your name <span aria-hidden="true">*</span></label>
+            <input type="text" id="r-name" name="name" required minlength="2" maxlength="60" autocomplete="name">
+          </div>
+
+          <div class="field">
+            <label for="r-email">Email for updates (optional)</label>
+            <input type="email" id="r-email" name="email" maxlength="80" autocomplete="email" placeholder="name@example.com">
+          </div>
+
+          <div class="field">
+            <label for="r-started">When did the power go out? <span aria-hidden="true">*</span></label>
+            <input type="datetime-local" id="r-started" name="started" required>
+            <p class="hint" id="r-started-hint">Cannot be in the future.</p>
+          </div>
+
+          <fieldset class="field">
+            <legend>How widespread is it? <span aria-hidden="true">*</span></legend>
+            <label class="choice"><input type="radio" name="severity" value="partial" required> Partial (some buildings)</label>
+            <label class="choice"><input type="radio" name="severity" value="full"> Full (whole zone)</label>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Affected services (checklist)</legend>
+            <div id="service-checks" class="checks"></div>
+          </fieldset>
+
+          <div class="field">
+            <label for="r-desc">What are you seeing? <span aria-hidden="true">*</span></label>
+            <textarea id="r-desc" name="description" rows="3" required minlength="10" maxlength="280" aria-describedby="r-desc-count"></textarea>
+            <p class="hint" id="r-desc-count">0 / 280 characters</p>
+          </div>
+
+          <div id="form-errors" class="form-errors" role="alert" hidden></div>
+
+          <div id="duplicate-notice" class="notice" role="alert" hidden>
+            <p id="duplicate-text"></p>
+            <div class="notice-actions">
+              <button type="button" class="btn" id="dup-confirm">Confirm the existing report</button>
+              <button type="button" class="btn btn-ghost" id="dup-new">Submit as a new report</button>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Submit report</button>
+            <button type="reset" class="btn btn-ghost" id="r-reset">Clear form</button>
+          </div>
+        </form>
+
+        <p id="form-success" class="success" role="status" aria-live="polite" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="detail" aria-labelledby="detail-title">
+    <div class="dialog-head">
+      <h2 id="detail-title">Outage details</h2>
+      <button type="button" class="btn btn-ghost" id="detail-close" aria-label="Close details">Close</button>
+    </div>
+    <div id="detail-body"></div>
+  </dialog>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>CS344 Web Engineering &ndash; Assignment 1 (client-side prototype). Sample data lives in the browser only and resets on reload. Verification threshold: <span id="threshold"></span> neighbour confirmations.</p>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
