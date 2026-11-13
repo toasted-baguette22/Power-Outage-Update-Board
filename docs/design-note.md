@@ -1,6 +1,7 @@
 # Design Note and Wireframe - Power Outage Update Board
 
 **Course:** CS344 Web Engineering - Assignment 1 | **Idea #24** | Individual project
+**Name:** Muhammad Ahmad    **CMS ID:** 509824
 
 ## 1. User and problem
 
